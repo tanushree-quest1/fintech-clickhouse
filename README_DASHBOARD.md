@@ -1,0 +1,110 @@
+# Banking Control Tower — Real-Time ClickHouse & React Dashboard
+
+Real-time executive and operations analytics dashboard built with **React**, **Chart.js**, and **Tailwind CSS**, powered by a high-throughput **ClickHouse** analytical database receiving streaming transactions from **Kafka**.
+
+---
+
+## 🚀 Architecture Overview
+
+```text
+Synthetic Producer / Kafka Stream
+              │
+              ▼
+   ClickHouse Kafka Engine
+   (transactions_kafka_queue)
+              │
+      Materialized View
+  (mv_kafka_to_transactions)
+              │
+              ▼
+    ClickHouse MergeTree
+  (transactions & 1m aggregates)
+              │
+              ▼
+     FastAPI Backend (:8000)
+ (Analytical Queries & WebSockets)
+              │
+              ▼
+  React + Chart.js Dashboard (:5173)
+ (Live Visualizations & Drill-Downs)
+```
+
+---
+
+## 📊 Features
+
+1. **Top-Level KPI Strip**:
+   - Total volume in USD ($) and transaction count with window-over-window velocity delta (e.g. ▲ 8.7%).
+   - Global authorization success rate % with real-time SLA threshold monitoring.
+   - Average and p95 latency tracking.
+   - Merchant network footprint and fraud risk scoring.
+
+2. **Continuous Anomaly Detection**:
+   - Compares live 15-minute slice metrics against trailing 24-hour baselines directly in ClickHouse.
+   - Surfaces slices deviating by &gt;1.8x from their historical norm (e.g., `Card / Georgia / E-commerce / Gateway Y`).
+   - Interactive **"Investigate Slice"** button jumps directly into the multi-dimensional explorer.
+
+3. **Chart.js Real-Time Visualizations**:
+   - **Transaction Velocity & Failures**: Smooth area/line chart rendering total throughput and failed transactions per minute.
+   - **Success Rate & Latency Trend**: Dual-axis line chart correlating failure spikes with latency degradation.
+   - **Gateway Health**: Comparative bar chart showing failure rate % and latency per gateway.
+   - **Payment Rail Mix**: High-contrast doughnut chart tracking volume across Card, ACH, Wire, Zelle, PayPal.
+   - **Root Cause Analysis**: Horizontal bar chart breaking down failure response codes (e.g., `91 - System Error`, `96 - Gateway Timeout`, `51 - Insufficient Funds`).
+
+4. **Multi-Dimensional Drill-Down Explorer**:
+   - Explore performance across Bank &rarr; Rail &rarr; Region &rarr; Category &rarr; Gateway &rarr; Affected Merchants.
+   - Clickable breadcrumbs and slice filtering.
+
+5. **Live Ingested Transaction Feed**:
+   - Scrolling real-time table of recent events ingested from ClickHouse with status badges, latencies, and response codes.
+
+6. **Interactive Incident Simulation**:
+   - Built-in **"Inject Incident"** / **"Resolve Incident"** control.
+   - Ramps failure rates and latency on Gateway Y over 2 minutes, allowing full end-to-end demonstration of anomaly detection and recovery.
+
+7. **Resilient Dual-Mode Connectivity**:
+   - Automatically connects to live ClickHouse (`localhost:8123`) when available.
+   - Features a zero-setup fallback stream simulator so the dashboard can be demonstrated immediately even before launching Docker containers.
+
+---
+
+## 🛠️ Quick Start
+
+### 1. Start ClickHouse & Kafka (Optional / Docker)
+If Docker Desktop is running:
+```bash
+docker compose up -d
+```
+Initialize tables and dimensions:
+```bash
+python populate_dimensions.py
+```
+
+### 2. Start the FastAPI Real-Time Backend
+In the project root:
+```bash
+python -m backend.main
+```
+The backend will run on `http://localhost:8000` with WebSocket endpoint at `ws://localhost:8000/ws/live`.
+
+### 3. Start the React + Chart.js Frontend
+In another terminal:
+```bash
+cd frontend
+npm run dev
+```
+Open `http://localhost:5173` in your browser.
+
+---
+
+## ⚡ Simulating an Incident During a Demo
+Click the **"INJECT INCIDENT (GATEWAY Y)"** button in the header (or send a POST request):
+```bash
+curl -X POST http://localhost:8000/incident/start
+```
+Within seconds:
+- Gateway Y failure rate will ramp up.
+- The **⚠ CRITICAL ANOMALY DETECTED** banner will trigger.
+- The Chart.js velocity and latency charts will display the spike.
+- Click **"Investigate Slice"** to view affected merchants.
+- Click **"Resolve Incident"** to restore system metrics to normal baseline.
