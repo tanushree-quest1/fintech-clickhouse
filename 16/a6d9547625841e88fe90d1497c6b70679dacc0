@@ -1,0 +1,111 @@
+producer.py
+  s_c802c39061255f::t_f2f78502c4ea7d 211
+  s_2ce4a6ba2988ae::t_498b56ae68747c 129-139,141-152,351
+  s_2ce4a6ba2988ae::t_92f9d711a7f247 11,164
+  s_2ce4a6ba2988ae::t_471c08de37b429 38,140
+  s_2ce4a6ba2988ae::t_56ac045ee7a4c2 29-30,56-74,76-128
+  s_2ce4a6ba2988ae::t_6228cad21a5092 28,75,290,303,345-346,356-361,364
+README_DASHBOARD.md
+  s_2ce4a6ba2988ae::t_95792bdad2e5be 78
+  s_2ce4a6ba2988ae::t_92f9d711a7f247 63
+  s_2ce4a6ba2988ae::t_353eb9e5ea1700 82
+  s_c802c39061255f::t_b372a2a055283d 116-123
+  s_2ce4a6ba2988ae::t_ff8ac40bb31171 80-81
+  s_2ce4a6ba2988ae::t_493ae4d7d7031b 79
+frontend/src/vite-env.d.ts
+  s_2ce4a6ba2988ae::t_fc083409fc958d 1
+init/05_dashboard_queries.sql
+  s_2ce4a6ba2988ae::t_860c718912cead 48-49,60
+  s_2ce4a6ba2988ae::t_be58be5411af1f 40-42,51-52
+  s_2ce4a6ba2988ae::t_e4b522707b2e22 59,61-63
+  s_2ce4a6ba2988ae::t_c078074109c4a6 96,100,103,107,110,116,126,160,170,181,206,220
+init/06_performance_aggregates.sql
+  h_ac42636a4acad2 1-4,30-81
+  s_2ce4a6ba2988ae::t_e4b522707b2e22 5-17
+  s_2ce4a6ba2988ae::t_49b59375ffebdb 18-29
+  s_2ce4a6ba2988ae::t_6af5b9b8c4e301 82-129
+ml_anomaly.py
+  s_c802c39061255f::t_b01c35868b8576 249
+  s_c802c39061255f::t_e9c4346d7dfa7a 2,4-7,9-11,14-20,24-27,30-34,36-43,45,47-49,51-248,250-304,308-310,316-321,324-329
+ARCHITECTURE_AND_DASHBOARD_GUIDE.md
+  s_2ce4a6ba2988ae::t_25274951c9ae23 1-97,102-211,214-535
+  s_2ce4a6ba2988ae::t_e4b522707b2e22 99
+  s_2ce4a6ba2988ae::t_6af5b9b8c4e301 100-101
+  s_2ce4a6ba2988ae::t_92f9d711a7f247 212-213
+  s_2ce4a6ba2988ae::t_49b59375ffebdb 98
+frontend/src/components/AnomalyBanner.tsx
+  s_c802c39061255f::t_78be347767c69a 71-75
+docker-compose.yaml
+  s_2ce4a6ba2988ae::t_3b5634e290efb7 2-9
+frontend/src/App.tsx
+  s_2ce4a6ba2988ae::t_3b9e9c5afcdc3e 190
+init/01_tables.sql
+  s_2ce4a6ba2988ae::t_be58be5411af1f 39-50,60
+  s_2ce4a6ba2988ae::t_49b59375ffebdb 51-59
+frontend/src/types.ts
+  s_c802c39061255f::t_412ff90484b8e0 68
+backend/main.py
+  s_2ce4a6ba2988ae::t_3b9e9c5afcdc3e 188-189,477,539,578
+  s_2ce4a6ba2988ae::t_be58be5411af1f 306-308,310,330-331,340-342
+  s_ccf8bcff687f74::t_dc27753c70e925 43,104-115,302,305,309,311-312,315-326,329,332-337,343-361
+  s_2ce4a6ba2988ae::t_bfc45016d09131 368,372,376,380,384,388,391,397-400,410,413-416,422,425-427
+  s_ccf8bcff687f74::t_7e3706f9bf5b80 585
+  s_ccf8bcff687f74::t_f367486028ff01 12,560,588-589
+  s_c802c39061255f::t_5cf92f27558992 148
+  s_2ce4a6ba2988ae::t_6af5b9b8c4e301 411-412,417-421,423-424,428
+  s_ccf8bcff687f74::t_184ccb6133ed6d 586-587
+  s_2ce4a6ba2988ae::t_ae12e00ca25ca4 395-396
+  s_ccf8bcff687f74::t_9a628a07c0de5a 595
+  s_ccf8bcff687f74::t_3d97d1ccb88385 566-577,579-580,610
+  s_2ce4a6ba2988ae::t_860c718912cead 327-328,338-339
+  s_c802c39061255f::t_76f064106c81af 131
+.claude/settings.json
+  s_ccf8bcff687f74::t_d93af9a1606410 1-90
+.entire/.gitignore
+  s_ccf8bcff687f74::t_9e2fb2f6643c2c 1-5
+.codex/hooks.json
+  h_ac42636a4acad2 1-88
+.entire/settings.json
+  h_ac42636a4acad2 1-9
+.opencode/plugins/entire.ts
+  h_ac42636a4acad2 1-269
+clickhouse-data/status
+  h_ac42636a4acad2 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "16a6d9547625841e88fe90d1497c6b70679dacc0",
+  "prompts": {},
+  "humans": {
+    "h_ac42636a4acad2": {
+      "author": "tanushreevijayasanan <tanushree@quest1.io>"
+    }
+  },
+  "sessions": {
+    "s_2ce4a6ba2988ae": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "f0822f56-609f-4472-ae68-a057dd977d89",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "tanushreevijayasanan <tanushree@quest1.io>"
+    },
+    "s_c802c39061255f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f4b9dd9fcffexFgi23YT3wMW1b",
+        "model": "unknown"
+      },
+      "human_author": "tanushreevijayasanan <tanushree@quest1.io>"
+    },
+    "s_ccf8bcff687f74": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "32735faf-60e5-4bbc-9ecc-a541ccc3b26f",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "tanushreevijayasanan <tanushree@quest1.io>"
+    }
+  }
+}
