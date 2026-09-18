@@ -112,6 +112,8 @@ class FaultInjector:
             "target": {
                 "rail": self.rail, "region": self.region,
                 "category": self.category, "gateway": self.gateway,
+                "target_failure_rate_pct": round(self.target_failure_rate * 100, 2),
+                "target_latency_ms": self.target_latency_ms,
             },
         }
 

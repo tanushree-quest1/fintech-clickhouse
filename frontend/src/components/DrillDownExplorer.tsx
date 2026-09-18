@@ -72,7 +72,7 @@ export const DrillDownExplorer: React.FC<DrillDownProps> = ({
 
   const banks = ['All', 'Chase', 'Bank of America', 'Wells Fargo', 'Citibank', 'US Bank'];
   const rails = ['All', 'Card', 'ACH', 'Wire', 'Zelle', 'PayPal'];
-  const regions = ['All', 'California', 'Texas', 'New York', 'Florida', 'Illinois', 'Pennsylvania', 'Ohio'];
+  const regions = ['All', 'California', 'Texas', 'New York', 'Florida', 'Illinois', 'Pennsylvania', 'Ohio', 'Georgia'];
   const categories = ['All', 'E-commerce', 'Travel', 'Food Delivery', 'Utilities', 'Groceries', 'Entertainment'];
   const gateways = ['All', 'Gateway A', 'Gateway B', 'Gateway X', 'Gateway Y', 'Gateway Z'];
 

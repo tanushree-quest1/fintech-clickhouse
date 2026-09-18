@@ -31,7 +31,7 @@ export const AnomalyBanner: React.FC<AnomalyBannerProps> = ({
 
   const slice = topAnomaly || {
     payment_rail: incident?.target.rail || 'Card',
-    region: incident?.target.region || 'Georgia',
+    region: incident?.target.region || 'California',
     merchant_category: incident?.target.category || 'E-commerce',
     gateway: incident?.target.gateway || 'Gateway Y',
     current_failure_rate_pct: incident?.current_failure_rate || 11.8,
