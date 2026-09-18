@@ -1,0 +1,14 @@
+init/03_materialized_views.sql
+  h_ac42636a4acad2 8,10-11,24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "080773c8c3678888e2b5420058dc1c27ae7aa511",
+  "prompts": {},
+  "humans": {
+    "h_ac42636a4acad2": {
+      "author": "tanushreevijayasanan <tanushree@quest1.io>"
+    }
+  }
+}
