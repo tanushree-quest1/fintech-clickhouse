@@ -37,3 +37,24 @@ ALTER TABLE bank_demo.transactions
 
 ALTER TABLE bank_demo.transactions
     ADD INDEX IF NOT EXISTS idx_respcode response_code TYPE set(20) GRANULARITY 4;
+
+-- The raw table keeps the dimension-first key for slice drill-downs. This
+-- projection gives recent time-window queries a time-first read path.
+ALTER TABLE bank_demo.transactions
+    ADD PROJECTION IF NOT EXISTS transactions_by_event_time
+(
+    SELECT
+        transaction_id, event_time, bank, payment_rail, region, merchant_category,
+        gateway, merchant_id, customer_id, amount, authorization_status,
+        response_code, settlement_status, latency_ms, is_synthetic_incident
+    ORDER BY (event_time, payment_rail, region, merchant_category, gateway, bank)
+);
+
+ALTER TABLE bank_demo.transactions
+    ADD PROJECTION IF NOT EXISTS transactions_by_slice
+(
+    SELECT
+        event_time, bank, payment_rail, region, merchant_category, gateway,
+        merchant_id, amount, authorization_status, latency_ms
+    ORDER BY (payment_rail, region, gateway, merchant_category, event_time, bank)
+);

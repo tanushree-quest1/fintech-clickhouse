@@ -11,7 +11,6 @@ merchant_category is READ from the catalog, never independently re-rolled.
 """
 
 import numpy as np
-import clickhouse_connect
 
 
 class MerchantCatalog:
@@ -54,14 +53,4 @@ class MerchantCatalog:
         `size` samples (or a single tuple if size is None), skewed by popularity."""
         cat = self.by_category[category]
         idx = rng.choice(len(cat["ids"]), size=size, p=cat["probs"])
-        if size is None:
-            return cat["ids"][idx], cat["gateways"][idx], cat["regions"][idx]
         return cat["ids"][idx], cat["gateways"][idx], cat["regions"][idx]
-
-
-def load_catalog(host="localhost", port=8123, database="bank_demo",
-                  user="demo", password="demo_pass") -> MerchantCatalog:
-    client = clickhouse_connect.get_client(
-        host=host, port=port, database=database, username=user, password=password,
-    )
-    return MerchantCatalog(client)

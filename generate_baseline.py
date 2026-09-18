@@ -75,17 +75,6 @@ AMOUNT_PARAMS = {
 }
 
 
-def weighted_choice(pool, weights, rng):
-    return rng.choice(pool, p=weights)
-
-
-def time_of_day_multiplier(hour: int) -> float:
-    """Business-hours peak shape: low overnight, ramps through the day."""
-    # Roughly models an 09:00-21:00 peak with a lunchtime and evening bump
-    base = 0.15 + 0.85 * np.exp(-((hour - 13.5) ** 2) / (2 * 5.5 ** 2))
-    return max(base, 0.08)
-
-
 def generate_batch(n: int, start_time: datetime, span_seconds: int, rng: np.random.Generator,
                     catalog=None):
     """

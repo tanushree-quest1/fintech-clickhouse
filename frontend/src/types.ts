@@ -65,6 +65,7 @@ export interface TransactionItem {
 
 export interface IncidentStatus {
   active: boolean;
+  ramp_seconds?: number;
   ramp_fraction: number;
   current_failure_rate: number;
   target: {
@@ -75,20 +76,6 @@ export interface IncidentStatus {
     target_failure_rate_pct: number;
     target_latency_ms: number;
   };
-}
-
-export interface SnapshotPayload {
-  type: string;
-  timestamp: string;
-  ch_connected: boolean;
-  kpis: KpiData;
-  timeseries: TimeseriesPoint[];
-  gateways: GatewayMetric[];
-  rails: RailMetric[];
-  response_codes: ResponseCodeMetric[];
-  anomalies: AnomalyItem[];
-  transactions: TransactionItem[];
-  incident: IncidentStatus;
 }
 
 export interface DrilldownMerchant {

@@ -60,7 +60,7 @@ Synthetic Producer / Kafka Stream
 
 6. **Interactive Incident Simulation**:
    - Built-in **"Inject Incident"** / **"Resolve Incident"** control.
-   - Ramps failure rates and latency on Gateway Y over 2 minutes, allowing full end-to-end demonstration of anomaly detection and recovery.
+   - Ramps failure rates and latency on Gateway Y over 30 seconds, allowing full end-to-end demonstration of anomaly detection and recovery.
 
 7. **Resilient Dual-Mode Connectivity**:
    - Automatically connects to live ClickHouse (`localhost:8123`) when available.
@@ -75,6 +75,11 @@ If Docker Desktop is running:
 ```bash
 docker compose up -d
 ```
+This also starts ClickStack Local Mode. Open HyperDX directly at `http://localhost:8080`. ClickStack's OpenTelemetry HTTP endpoint is `http://localhost:4318`.
+
+The producer exports one sampled transaction per 100 events to ClickStack as OTLP logs. In HyperDX, add an `otel_logs` source if prompted, then search for `service.name:bank-control-tower-producer`. Override the default sampling or collector URL with `--clickstack-sample-every` and `--clickstack-endpoint` when needed.
+
+For an existing ClickHouse volume, apply `init/06_performance_aggregates.sql` once after updating the repository. It creates the time-first and slice-ordered raw projections plus the minute-level slice and merchant aggregates used by the dashboard. Do not rerun its historical backfill after the aggregate tables have been populated.
 Initialize tables and dimensions:
 ```bash
 python populate_dimensions.py
@@ -108,3 +113,11 @@ Within seconds:
 - The Chart.js velocity and latency charts will display the spike.
 - Click **"Investigate Slice"** to view affected merchants.
 - Click **"Resolve Incident"** to restore system metrics to normal baseline.
+
+Before the demo, confirm the fault injector is running a 30-second ramp (not the
+old 300-second class left over from a stale producer process):
+```bash
+curl http://localhost:8000/incident/status   # expect "ramp_seconds": 30
+```
+Restart the producer (`python producer.py`) if it reports anything else, then
+re-check the status — restarting resets the incident automatically.

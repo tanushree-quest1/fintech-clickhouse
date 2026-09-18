@@ -37,27 +37,30 @@ SELECT
 -- Compares current failure rate per (rail, region, category, gateway) slice
 -- against a trailing 24-hour baseline for the same slice. Surfaces any slice
 -- whose current failure rate deviates sharply from its own historical norm —
--- this is what would actually catch Gateway Y without hardcoding it.
+-- this is what would actually catch Gateway Y without hardcoding it. The
+-- production endpoint uses transactions_slice_1m_agg so this comparison merges
+-- minute-level aggregate states instead of rescanning raw transactions.
 
 WITH
     current_stats AS (
         SELECT
             payment_rail, region, merchant_category, gateway,
-            count() AS total,
-            countIf(authorization_status = 'FAILED') AS failed,
+            countMerge(total) AS total,
+            countMerge(failed) AS failed,
             failed / total AS failure_rate
-        FROM transactions
-        WHERE event_time >= now() - INTERVAL 5 MINUTE
+        FROM transactions_slice_1m_agg
+        WHERE minute >= now() - INTERVAL 5 MINUTE
         GROUP BY payment_rail, region, merchant_category, gateway
         HAVING total > 50   -- ignore statistically noisy tiny slices
     ),
     baseline_stats AS (
         SELECT
             payment_rail, region, merchant_category, gateway,
-            countIf(authorization_status = 'FAILED') / count() AS baseline_failure_rate
-        FROM transactions
-        WHERE event_time >= now() - INTERVAL 1 DAY
-          AND event_time < now() - INTERVAL 1 HOUR   -- exclude the live/incident window
+            countMerge(total) AS baseline_total,
+            countMerge(failed) / countMerge(total) AS baseline_failure_rate
+        FROM transactions_slice_1m_agg
+        WHERE minute >= now() - INTERVAL 1 DAY
+          AND minute < now() - INTERVAL 1 HOUR   -- exclude the live/incident window
         GROUP BY payment_rail, region, merchant_category, gateway
     )
 SELECT
@@ -90,27 +93,27 @@ SELECT payment_rail, count() AS total, countIf(authorization_status = 'FAILED') 
 FROM transactions WHERE event_time >= now() - INTERVAL 15 MINUTE
 GROUP BY payment_rail ORDER BY failure_rate_pct DESC;
 
--- 3c. + Region (within UPI)
+-- 3c. + Region (within Card)
 SELECT region, count() AS total, countIf(authorization_status = 'FAILED') AS failed,
        round(100 * failed / total, 2) AS failure_rate_pct
 FROM transactions
-WHERE event_time >= now() - INTERVAL 15 MINUTE AND payment_rail = 'UPI'
+WHERE event_time >= now() - INTERVAL 15 MINUTE AND payment_rail = 'Card'
 GROUP BY region ORDER BY failure_rate_pct DESC;
 
--- 3d. + Merchant category (within UPI/Mumbai)
+-- 3d. + Merchant category (within Card/California)
 SELECT merchant_category, count() AS total, countIf(authorization_status = 'FAILED') AS failed,
        round(100 * failed / total, 2) AS failure_rate_pct
 FROM transactions
-WHERE event_time >= now() - INTERVAL 15 MINUTE AND payment_rail = 'UPI' AND region = 'Mumbai'
+WHERE event_time >= now() - INTERVAL 15 MINUTE AND payment_rail = 'Card' AND region = 'California'
 GROUP BY merchant_category ORDER BY failure_rate_pct DESC;
 
--- 3e. + Gateway (within UPI/Mumbai/E-commerce)
+-- 3e. + Gateway (within Card/California/E-commerce)
 SELECT gateway, count() AS total, countIf(authorization_status = 'FAILED') AS failed,
        round(100 * failed / total, 2) AS failure_rate_pct,
        round(avg(latency_ms), 1) AS avg_latency_ms
 FROM transactions
 WHERE event_time >= now() - INTERVAL 15 MINUTE
-  AND payment_rail = 'UPI' AND region = 'Mumbai' AND merchant_category = 'E-commerce'
+    AND payment_rail = 'Card' AND region = 'California' AND merchant_category = 'E-commerce'
 GROUP BY gateway ORDER BY failure_rate_pct DESC;
 
 -- 3f. + Merchant (within the full incident slice, top offenders)
@@ -120,7 +123,7 @@ SELECT m.merchant_name, count() AS total,
 FROM transactions t
 JOIN merchants m USING (merchant_id)
 WHERE t.event_time >= now() - INTERVAL 15 MINUTE
-  AND t.payment_rail = 'UPI' AND t.region = 'Mumbai'
+    AND t.payment_rail = 'Card' AND t.region = 'California'
   AND t.merchant_category = 'E-commerce' AND t.gateway = 'Gateway Y'
 GROUP BY m.merchant_name ORDER BY failed DESC LIMIT 20;
 
@@ -154,7 +157,7 @@ WITH
             round(100 * (1 - failures / total), 2) AS success_pct,
             round(avg(latency_ms), 1) AS avg_latency
         FROM transactions
-        WHERE payment_rail = 'UPI' AND region = 'Mumbai' AND gateway = 'Gateway Y'
+        WHERE payment_rail = 'Card' AND region = 'California' AND gateway = 'Gateway Y'
           AND event_time >= now() - INTERVAL 15 MINUTE
     ),
     yesterday_stats AS (
@@ -164,7 +167,7 @@ WITH
             round(100 * (1 - failures / total), 2) AS success_pct,
             round(avg(latency_ms), 1) AS avg_latency
         FROM transactions
-        WHERE payment_rail = 'UPI' AND region = 'Mumbai' AND gateway = 'Gateway Y'
+        WHERE payment_rail = 'Card' AND region = 'California' AND gateway = 'Gateway Y'
           AND event_time >= now() - INTERVAL 1 DAY - INTERVAL 15 MINUTE
           AND event_time < now() - INTERVAL 1 DAY
     ),
@@ -175,7 +178,7 @@ WITH
             round(100 * (1 - failures / total), 2) AS success_pct,
             round(avg(latency_ms), 1) AS avg_latency
         FROM transactions
-        WHERE payment_rail = 'UPI' AND region = 'Mumbai' AND gateway = 'Gateway Y'
+        WHERE payment_rail = 'Card' AND region = 'California' AND gateway = 'Gateway Y'
           AND event_time >= now() - INTERVAL 7 DAY - INTERVAL 15 MINUTE
           AND event_time < now() - INTERVAL 7 DAY
     )
@@ -200,7 +203,7 @@ FROM transactions t
 JOIN customers c USING (customer_id)
 WHERE t.event_time >= now() - INTERVAL 15 MINUTE
   AND t.authorization_status = 'FAILED'
-  AND t.payment_rail = 'UPI' AND t.region = 'Mumbai'
+    AND t.payment_rail = 'Card' AND t.region = 'California'
   AND t.merchant_category = 'E-commerce' AND t.gateway = 'Gateway Y'
 GROUP BY c.segment
 ORDER BY value_at_risk DESC;
@@ -214,7 +217,7 @@ FROM transactions t
 JOIN merchants m USING (merchant_id)
 WHERE t.event_time >= now() - INTERVAL 15 MINUTE
   AND t.authorization_status = 'FAILED'
-  AND t.payment_rail = 'UPI' AND t.region = 'Mumbai'
+    AND t.payment_rail = 'Card' AND t.region = 'California'
   AND t.merchant_category = 'E-commerce' AND t.gateway = 'Gateway Y'
 GROUP BY m.merchant_name
 ORDER BY value_at_risk DESC

@@ -1,11 +1,3 @@
-"""
-FastAPI Backend Server for Real-Time Banking Control Tower Dashboard.
-Directly queries ClickHouse (localhost:8123, database 'bank_demo') and streams
-live metrics to the React + Chart.js dashboard.
-No fallback synthetic data: If ClickHouse or the database is unavailable,
-endpoints return 503 / explicit error messages.
-"""
-
 import asyncio
 import json
 import logging
@@ -17,6 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +40,7 @@ PRODUCER_API = os.getenv("PRODUCER_API", "http://127.0.0.1:8001")
 # ---------------------------------------------------------------------------
 _ch_client = None
 _ch_lock = None
+_dashboard_query_cache = {}
 
 def _get_lock():
     global _ch_lock
@@ -107,6 +101,18 @@ def ch_query(client, sql: str, parameters: Optional[Dict] = None):
             _ch_client = None
             raise
 
+def cached_dashboard_query(name: str, ttl_seconds: float, query_fn):
+    now = time.monotonic()
+    with _get_lock():
+        cached = _dashboard_query_cache.get(name)
+        if cached and now - cached[0] < ttl_seconds:
+            return cached[1]
+
+    result = query_fn()
+    with _get_lock():
+        _dashboard_query_cache[name] = (time.monotonic(), result)
+    return result
+
 # ---------------------------------------------------------------------------
 # Incident Injector — proxies to producer.py (source of truth for live faults)
 # ---------------------------------------------------------------------------
@@ -122,6 +128,7 @@ def _normalize_incident_status(raw: Dict[str, Any]) -> Dict[str, Any]:
     target = raw.get("target") or {}
     return {
         "active": bool(raw.get("active", False)),
+        "ramp_seconds": raw.get("ramp_seconds"),
         "ramp_fraction": float(raw.get("ramp_fraction", 0) or 0),
         "current_failure_rate": rate_pct,
         "target": {
@@ -138,6 +145,7 @@ def _normalize_incident_status(raw: Dict[str, Any]) -> Dict[str, Any]:
 def _default_incident_status() -> Dict[str, Any]:
     return {
         "active": False,
+        "ramp_seconds": 30,
         "ramp_fraction": 0.0,
         "current_failure_rate": 1.9,
         "target": {
@@ -177,17 +185,8 @@ def call_producer_incident(action: str) -> Dict[str, Any]:
         ) from e
 
 
-class FaultInjector:
-    """Local fallback status only — live injection is owned by producer.py."""
-
-    def __init__(self):
-        self._cached = _default_incident_status()
-
-    def status(self) -> Dict[str, Any]:
-        self._cached = fetch_producer_incident()
-        return self._cached
-
-injector = FaultInjector()
+def incident_status() -> Dict[str, Any]:
+    return fetch_producer_incident()
 
 # ---------------------------------------------------------------------------
 # Direct ClickHouse Queries (init/05_dashboard_queries.sql)
@@ -300,93 +299,105 @@ def query_rails(client) -> List[Dict[str, Any]]:
     ]
 
 def query_response_codes(client) -> List[Dict[str, Any]]:
-    res = ch_query(client, """
-        SELECT
-            response_code,
-            count() AS count
-        FROM transactions
-        WHERE event_time >= now() - INTERVAL 15 MINUTE
-          AND authorization_status = 'FAILED'
-        GROUP BY response_code
-        ORDER BY count DESC
-        LIMIT 8
-    """)
-    return list(res.named_results())
+    def load():
+        res = ch_query(client, """
+            SELECT
+                response_code,
+                countMerge(failed) AS count
+            FROM transactions_slice_1m_agg
+            PREWHERE minute >= now() - INTERVAL 15 MINUTE
+            GROUP BY response_code
+            HAVING count > 0
+            ORDER BY count DESC
+            LIMIT 8
+        """)
+        return list(res.named_results())
+
+    return cached_dashboard_query("response_codes", 10, load)
 
 def query_anomalies(client) -> List[Dict[str, Any]]:
     # Continuous anomaly detection from 05_dashboard_queries.sql
     try:
-        res = ch_query(client, """
-            WITH
-                current_stats AS (
-                    SELECT
-                        payment_rail, region, merchant_category, gateway,
-                        count() AS total,
-                        countIf(authorization_status = 'FAILED') AS failed,
-                        failed / total AS failure_rate
-                    FROM transactions
-                    WHERE event_time >= now() - INTERVAL 15 MINUTE
-                    GROUP BY payment_rail, region, merchant_category, gateway
-                    HAVING total > 20
-                ),
-                baseline_stats AS (
-                    SELECT
-                        payment_rail, region, merchant_category, gateway,
-                        count() AS baseline_total,
-                        countIf(authorization_status = 'FAILED') / count() AS baseline_failure_rate
-                    FROM transactions
-                    WHERE event_time >= now() - INTERVAL 1 DAY
-                      AND event_time < now() - INTERVAL 1 HOUR
-                    GROUP BY payment_rail, region, merchant_category, gateway
-                )
-            SELECT
-                c.payment_rail, c.region, c.merchant_category, c.gateway,
-                round(100 * c.failure_rate, 2) AS current_failure_rate_pct,
-                round(100 * b.baseline_failure_rate, 2) AS baseline_failure_rate_pct,
-                                round(c.failure_rate / b.baseline_failure_rate, 1) AS times_above_baseline
-            FROM current_stats c
-            JOIN baseline_stats b USING (payment_rail, region, merchant_category, gateway)
-                        WHERE b.baseline_total >= 100
-                            AND b.baseline_failure_rate > 0
-                            AND c.failure_rate >= b.baseline_failure_rate + 0.02
-                            AND c.failure_rate >= b.baseline_failure_rate * 1.8
-                        ORDER BY c.failure_rate / b.baseline_failure_rate DESC
-            LIMIT 5
-        """)
-        return list(res.named_results())
+        def load():
+            res = ch_query(client, """
+                WITH
+                    current_stats AS (
+                        SELECT
+                            payment_rail, region, merchant_category, gateway,
+                            countMerge(total) AS total,
+                            countMerge(failed) AS failed,
+                            failed / total AS failure_rate
+                        FROM transactions_slice_1m_agg
+                        PREWHERE minute >= now() - INTERVAL 15 MINUTE
+                        GROUP BY payment_rail, region, merchant_category, gateway
+                        HAVING total > 20
+                    ),
+                    baseline_stats AS (
+                        SELECT
+                            payment_rail, region, merchant_category, gateway,
+                            countMerge(total) AS baseline_total,
+                            countMerge(failed) / countMerge(total) AS baseline_failure_rate
+                                                FROM transactions_slice_1m_agg
+                                                PREWHERE minute >= now() - INTERVAL 1 DAY
+                                                    AND minute < now() - INTERVAL 1 HOUR
+                        GROUP BY payment_rail, region, merchant_category, gateway
+                    )
+                SELECT
+                    c.payment_rail, c.region, c.merchant_category, c.gateway,
+                    round(100 * c.failure_rate, 2) AS current_failure_rate_pct,
+                    round(100 * b.baseline_failure_rate, 2) AS baseline_failure_rate_pct,
+                    round(c.failure_rate / b.baseline_failure_rate, 1) AS times_above_baseline
+                FROM current_stats c
+                JOIN baseline_stats b USING (payment_rail, region, merchant_category, gateway)
+                WHERE b.baseline_total >= 100
+                  AND b.baseline_failure_rate > 0
+                  AND c.failure_rate >= b.baseline_failure_rate + 0.02
+                  AND c.failure_rate >= b.baseline_failure_rate * 1.8
+                ORDER BY c.failure_rate / b.baseline_failure_rate DESC
+                LIMIT 5
+            """)
+            return list(res.named_results())
+
+        return cached_dashboard_query("anomalies", 10, load)
     except Exception as e:
         logger.warning("Anomaly query warning: %s", e)
         return []
 
 def query_drilldown(client, bank=None, rail=None, region=None, category=None, gateway=None) -> Dict[str, Any]:
     where_clauses = ["t.event_time >= now() - INTERVAL 15 MINUTE"]
+    aggregate_where_clauses = ["minute >= now() - INTERVAL 15 MINUTE"]
     query_params = {}
     if bank and bank != 'All':
         where_clauses.append("t.bank = {bank:String}")
+        aggregate_where_clauses.append("bank = {bank:String}")
         query_params["bank"] = bank
     if rail and rail != 'All':
         where_clauses.append("t.payment_rail = {rail:String}")
+        aggregate_where_clauses.append("payment_rail = {rail:String}")
         query_params["rail"] = rail
     if region and region != 'All':
         where_clauses.append("t.region = {region:String}")
+        aggregate_where_clauses.append("region = {region:String}")
         query_params["region"] = region
     if category and category != 'All':
         where_clauses.append("t.merchant_category = {category:String}")
+        aggregate_where_clauses.append("merchant_category = {category:String}")
         query_params["category"] = category
     if gateway and gateway != 'All':
         where_clauses.append("t.gateway = {gateway:String}")
+        aggregate_where_clauses.append("gateway = {gateway:String}")
         query_params["gateway"] = gateway
     
-    where_sql = " AND ".join(where_clauses)
+    aggregate_where_sql = " AND ".join(aggregate_where_clauses)
 
     res = ch_query(client, f"""
         SELECT
-            count() AS total,
-            countIf(authorization_status = 'FAILED') AS failed,
-            round(100 * (countIf(authorization_status = 'FAILED') / count()), 2) AS failure_rate_pct,
-            round(avg(latency_ms), 1) AS avg_latency_ms
-        FROM transactions AS t
-        WHERE {where_sql}
+            countMerge(total) AS total_count,
+            countMerge(failed) AS failed_count,
+            round(100 * (countMerge(failed) / countMerge(total)), 2) AS failure_rate_pct,
+            round(avgMerge(avg_latency), 1) AS avg_latency_ms
+        FROM transactions_slice_1m_agg
+        PREWHERE {aggregate_where_sql}
     """, parameters=query_params)
     stats = res.first_row
     tot = int(stats[0]) if stats and stats[0] is not None else 0
@@ -396,17 +407,25 @@ def query_drilldown(client, bank=None, rail=None, region=None, category=None, ga
 
     merchant_res = ch_query(client, f"""
         SELECT
-            coalesce(nullIf(m.merchant_name, ''), concat('Merchant #', toString(t.merchant_id))) AS merchant_name,
-            count() AS total,
-            countIf(t.authorization_status = 'FAILED') AS failed,
-            round(sum(t.amount), 2) AS volume
-        FROM transactions AS t
-        LEFT JOIN merchants AS m ON t.merchant_id = m.merchant_id
-        WHERE {where_sql}
-        GROUP BY t.merchant_id, m.merchant_name
-        HAVING failed > 0
-        ORDER BY failed DESC, volume DESC
-        LIMIT 4
+            coalesce(nullIf(m.merchant_name, ''), concat('Merchant #', toString(top.merchant_id))) AS merchant_name,
+            top.total_count AS total,
+            top.failed_count AS failed,
+            top.volume
+        FROM (
+            SELECT
+                merchant_id,
+                countMerge(total) AS total_count,
+                countMerge(failed) AS failed_count,
+                round(sumMerge(volume), 2) AS volume
+            FROM transactions_merchant_1m_agg
+            PREWHERE {aggregate_where_sql}
+            GROUP BY merchant_id
+            HAVING failed_count > 0
+            ORDER BY failed_count DESC, volume DESC
+            LIMIT 4
+        ) AS top
+        LEFT JOIN merchants AS m ON top.merchant_id = m.merchant_id
+        ORDER BY top.failed_count DESC, top.volume DESC
     """, parameters=query_params)
 
     return {
@@ -455,7 +474,7 @@ def get_status():
             "port": CH_PORT,
             "database": CH_DB,
         },
-        "incident": injector.status(),
+        "incident": incident_status(),
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -517,7 +536,7 @@ def stop_incident():
 
 @app.get("/incident/status")
 def get_incident_status():
-    return injector.status()
+    return incident_status()
 
 # ---------------------------------------------------------------------------
 # WebSocket Real-Time Broadcaster (/ws/live)
@@ -538,21 +557,42 @@ class ConnectionManager:
     async def broadcast(self, message: dict):
         for conn in list(self.active_connections):
             try:
-                await conn.send_json(message)
+                await conn.send_json(jsonable_encoder(message))
             except Exception:
                 self.disconnect(conn)
 
 manager = ConnectionManager()
 
+def build_live_snapshot(client) -> Dict[str, Any]:
+    return {
+        "type": "SNAPSHOT",
+        "timestamp": datetime.now().isoformat(),
+        "ch_connected": True,
+        "kpis": query_kpis(client),
+        "timeseries": query_timeseries(client),
+        "gateways": query_gateways(client),
+        "rails": query_rails(client),
+        "response_codes": query_response_codes(client),
+        "anomalies": query_anomalies(client),
+        "transactions": get_live_transactions(client),
+        "incident": incident_status(),
+    }
+
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
+        await websocket.send_json({"type": "CONNECTED", "ch_connected": True})
+        client = get_ch_client()
+        if client:
+            payload = await asyncio.to_thread(build_live_snapshot, client)
+            await websocket.send_json(jsonable_encoder(payload))
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception:
+        logger.exception("WebSocket connection failed")
         manager.disconnect(websocket)
 
 async def background_broadcaster():
@@ -567,19 +607,7 @@ async def background_broadcaster():
                     "timestamp": datetime.now().isoformat(),
                 })
             else:
-                payload = {
-                    "type": "SNAPSHOT",
-                    "timestamp": datetime.now().isoformat(),
-                    "ch_connected": True,
-                    "kpis": query_kpis(client),
-                    "timeseries": query_timeseries(client),
-                    "gateways": query_gateways(client),
-                    "rails": query_rails(client),
-                    "response_codes": query_response_codes(client),
-                    "anomalies": query_anomalies(client),
-                    "transactions": get_live_transactions(client),
-                    "incident": injector.status(),
-                }
+                payload = await asyncio.to_thread(build_live_snapshot, client)
                 await manager.broadcast(payload)
         except Exception as e:
             logger.error("Error in broadcaster: %s", e)

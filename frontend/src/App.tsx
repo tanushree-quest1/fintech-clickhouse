@@ -19,7 +19,6 @@ import {
   AnomalyItem,
   TransactionItem,
   IncidentStatus,
-  SnapshotPayload,
 } from './types';
 
 const API_BASE = 'http://127.0.0.1:8000';
@@ -188,7 +187,7 @@ export const App: React.FC = () => {
   }, [refreshInterval, wsConnected, chConnected, fetchAllData]);
 
   // Fault injection toggle
-  const toggleIncident = async () => {
+  const handleToggleIncident = async () => {
     const isCurrentlyActive = incident?.active;
     const endpoint = isCurrentlyActive ? '/incident/stop' : '/incident/start';
     try {
@@ -199,11 +198,6 @@ export const App: React.FC = () => {
     } catch (err) {
       console.error('Failed to toggle incident:', err);
     }
-  };
-
-  // Add toggle incident back to header functionality
-  const handleToggleIncident = async () => {
-    await toggleIncident();
   };
 
   const handleInvestigate = (anomaly: AnomalyItem) => {

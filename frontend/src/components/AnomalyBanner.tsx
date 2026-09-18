@@ -68,6 +68,11 @@ export const AnomalyBanner: React.FC<AnomalyBannerProps> = ({
             <span className="text-red-700 font-mono font-bold">
               {slice.times_above_baseline}x above historical baseline
             </span>
+            {typeof incident?.ramp_seconds === 'number' && (
+              <span className="text-gray-500 font-mono">
+                Fault ramp: {incident.ramp_seconds}s
+              </span>
+            )}
           </div>
         </div>
 

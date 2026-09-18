@@ -1,4 +1,12 @@
 services:
+  clickstack:
+    image: clickhouse/clickstack-local:latest
+    container_name: bank-control-tower-clickstack
+    ports:
+      - "8080:8080"
+      - "4317:4317"
+      - "4318:4318"
+
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: bank-control-tower-ch
