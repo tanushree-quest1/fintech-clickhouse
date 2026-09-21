@@ -1,0 +1,6 @@
+1. Establish the normal blue throughput pattern.
+2. Inject the Gateway Y incident.
+3. Watch for red failure bars to grow while total volume remains comparatively stable.
+4. Use the next chart to determine whether the failure increase is correlated with latency.
+
+this doesn't happen when i inject an incident The code and docs now match a 30-second demo ramp, but the already-running producer still has the old 300-second class loaded. I’m restarting only the producer, resetting the incident, and checking that its reported ramp configuration changes before the final validation. can you check this and make the changes to ensure it works as intended?
