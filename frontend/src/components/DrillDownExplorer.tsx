@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DrilldownData } from '../types';
-
-const API_BASE = 'http://127.0.0.1:8000';
+import { API_BASE } from '../api';
 
 interface DrillDownProps {
   initialSlice?: {

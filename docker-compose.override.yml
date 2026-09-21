@@ -1,0 +1,29 @@
+services:
+  librechat:
+    image: librechat/librechat:latest
+    container_name: bank-control-tower-librechat
+    ports:
+      - "3080:3080"
+    volumes:
+      - ./LibreChat/.env:/app/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - MONGO_URI=mongodb://librechat-mongo:27017/LibreChat
+      - CONFIG_BYPASS_VALIDATION=true
+      - JWT_SECRET=banking-demo-jwt-secret-change-in-production-2024
+      - ALLOWED_DOMAINS=host.docker.internal,localhost,mcp-clickhouse
+    depends_on:
+      - librechat-mongo
+      - mcp-clickhouse
+
+  librechat-mongo:
+    image: mongo:latest
+    container_name: bank-control-tower-librechat-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - librechat-mongo-data:/data/db
+
+volumes:
+  librechat-mongo-data:

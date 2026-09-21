@@ -70,7 +70,12 @@ Synthetic Producer / Kafka Stream
 
 ## 🛠️ Quick Start
 
-### 1. Start ClickHouse & Kafka (Optional / Docker)
+### 1. Install Python dependencies
+```bash
+pip install -r backend/requirements.txt
+```
+
+### 2. Start ClickHouse & Kafka (Optional / Docker)
 If Docker Desktop is running:
 ```bash
 docker compose up -d
@@ -80,25 +85,49 @@ This also starts ClickStack Local Mode. Open HyperDX directly at `http://localho
 The producer exports one sampled transaction per 100 events to ClickStack as OTLP logs. In HyperDX, add an `otel_logs` source if prompted, then search for `service.name:bank-control-tower-producer`. Override the default sampling or collector URL with `--clickstack-sample-every` and `--clickstack-endpoint` when needed.
 
 For an existing ClickHouse volume, apply `init/06_performance_aggregates.sql` once after updating the repository. It creates the time-first and slice-ordered raw projections plus the minute-level slice and merchant aggregates used by the dashboard. Do not rerun its historical backfill after the aggregate tables have been populated.
-Initialize tables and dimensions:
+Initialize the dimensions required by the transaction generators:
 ```bash
 python populate_dimensions.py
 ```
 
-### 2. Start the FastAPI Real-Time Backend
+Generate historical baseline traffic (needed for meaningful anomaly comparisons):
+```bash
+python generate_baseline.py --rows 500000
+```
+
+Start the live Kafka producer and its incident-control API in a separate terminal:
+```bash
+python producer.py
+```
+
+### 3. Start the FastAPI Real-Time Backend
 In the project root:
 ```bash
 python -m backend.main
 ```
 The backend will run on `http://localhost:8000` with WebSocket endpoint at `ws://localhost:8000/ws/live`.
 
-### 3. Start the React + Chart.js Frontend
+### 4. Start the React + Chart.js Frontend
 In another terminal:
 ```bash
 cd frontend
 npm run dev
 ```
 Open `http://localhost:5173` in your browser.
+
+To open the dashboard from another machine on the same network, use the host
+machine's address rather than `localhost`. The frontend automatically connects
+to the backend on that same host at port 8000. Set `VITE_API_BASE` before
+building only when the API is hosted elsewhere.
+
+### Optional: Langfuse observability
+
+Set `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` before starting the backend
+or running `ml_anomaly.py`. Set `LANGFUSE_BASE_URL` as well for a self-hosted
+instance. The integration traces anomaly detection, slice investigation, and
+ML training using only aggregate metrics and selected dimensions; it never
+exports transaction rows or customer identifiers. Without these variables,
+Langfuse is disabled and the application runs normally.
 
 ---
 

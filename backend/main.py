@@ -12,6 +12,8 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.langfuse_observability import langfuse_observer
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("control-tower-backend")
 
@@ -318,8 +320,12 @@ def query_response_codes(client) -> List[Dict[str, Any]]:
 def query_anomalies(client) -> List[Dict[str, Any]]:
     # Continuous anomaly detection from 05_dashboard_queries.sql
     try:
-        def load():
-            res = ch_query(client, """
+        with langfuse_observer.span(
+            "detect-payment-anomalies",
+            {"source": "clickhouse", "window_minutes": 15, "baseline_exclusion_minutes": 60},
+        ) as record_output:
+            def load():
+                res = ch_query(client, """
                 WITH
                     current_stats AS (
                         SELECT
@@ -356,9 +362,11 @@ def query_anomalies(client) -> List[Dict[str, Any]]:
                 ORDER BY c.failure_rate / b.baseline_failure_rate DESC
                 LIMIT 5
             """)
-            return list(res.named_results())
+                return list(res.named_results())
 
-        return cached_dashboard_query("anomalies", 10, load)
+            anomalies = cached_dashboard_query("anomalies", 10, load)
+            record_output({"anomaly_count": len(anomalies)})
+            return anomalies
     except Exception as e:
         logger.warning("Anomaly query warning: %s", e)
         return []
@@ -390,7 +398,15 @@ def query_drilldown(client, bank=None, rail=None, region=None, category=None, ga
     
     aggregate_where_sql = " AND ".join(aggregate_where_clauses)
 
-    res = ch_query(client, f"""
+    with langfuse_observer.span(
+        "investigate-payment-slice",
+        {
+            "source": "clickhouse",
+            "filters": {"bank": bank, "rail": rail, "region": region, "category": category, "gateway": gateway},
+            "window_minutes": 15,
+        },
+    ) as record_output:
+        res = ch_query(client, f"""
         SELECT
             countMerge(total) AS total_count,
             countMerge(failed) AS failed_count,
@@ -399,13 +415,13 @@ def query_drilldown(client, bank=None, rail=None, region=None, category=None, ga
         FROM transactions_slice_1m_agg
         PREWHERE {aggregate_where_sql}
     """, parameters=query_params)
-    stats = res.first_row
-    tot = int(stats[0]) if stats and stats[0] is not None else 0
-    fail = int(stats[1]) if stats and stats[1] is not None else 0
-    fail_pct = float(stats[2]) if stats and stats[2] is not None else 0.0
-    avg_lat = float(stats[3]) if stats and stats[3] is not None else 0.0
+        stats = res.first_row
+        tot = int(stats[0]) if stats and stats[0] is not None else 0
+        fail = int(stats[1]) if stats and stats[1] is not None else 0
+        fail_pct = float(stats[2]) if stats and stats[2] is not None else 0.0
+        avg_lat = float(stats[3]) if stats and stats[3] is not None else 0.0
 
-    merchant_res = ch_query(client, f"""
+        merchant_res = ch_query(client, f"""
         SELECT
             coalesce(nullIf(m.merchant_name, ''), concat('Merchant #', toString(top.merchant_id))) AS merchant_name,
             top.total_count AS total,
@@ -428,16 +444,18 @@ def query_drilldown(client, bank=None, rail=None, region=None, category=None, ga
         ORDER BY top.failed_count DESC, top.volume DESC
     """, parameters=query_params)
 
-    return {
-        "total": tot,
-        "failed": fail,
-        "failure_rate_pct": fail_pct,
-        "avg_latency_ms": avg_lat,
-        "merchants": list(merchant_res.named_results()),
-        "filters": {
-            "bank": bank, "rail": rail, "region": region, "category": category, "gateway": gateway
-        },
-    }
+        result = {
+            "total": tot,
+            "failed": fail,
+            "failure_rate_pct": fail_pct,
+            "avg_latency_ms": avg_lat,
+            "merchants": list(merchant_res.named_results()),
+            "filters": {
+                "bank": bank, "rail": rail, "region": region, "category": category, "gateway": gateway
+            },
+        }
+        record_output({"total_transactions": tot, "failed_transactions": fail, "merchant_count": len(result["merchants"])})
+        return result
 
 def get_live_transactions(client) -> List[Dict[str, Any]]:
     res = ch_query(client, """

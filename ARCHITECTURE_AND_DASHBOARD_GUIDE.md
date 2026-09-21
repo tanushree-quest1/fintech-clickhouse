@@ -59,6 +59,7 @@ flowchart LR
 | FastAPI backend | Queries ClickHouse, exposes REST endpoints, and streams snapshots over WebSocket | `http://localhost:8000` |
 | React frontend | Renders the executive and operations dashboard | `http://localhost:5173` |
 | ClickStack Local / HyperDX | Stores and explores OpenTelemetry logs, traces, and metrics | UI `http://localhost:8080` |
+| Langfuse (optional) | Traces anomaly detection, slice investigation, and ML model training | Configured with `LANGFUSE_*` environment variables |
 | OTLP collector | Receives sampled producer telemetry for ClickStack | HTTP `http://localhost:4318/v1/logs` |
 
 ## 3. Transaction Data Flow
@@ -108,7 +109,8 @@ Detailed investigation      -> transactions
 
 ## 4. Application API and Live Updates
 
-The React application talks to the FastAPI backend at `http://127.0.0.1:8000`.
+The React application talks to the FastAPI backend on the current browser host at
+port `8000` by default. Set `VITE_API_BASE` when the API is hosted separately.
 
 ### REST data endpoints
 
@@ -453,7 +455,7 @@ This is the final operational step in the default investigation path. It answers
 10. Use the affected merchant list and live transaction table to show business impact and event-level evidence.
 11. Open HyperDX separately at `http://localhost:8080` to inspect sampled producer telemetry in ClickStack.
 
-## 11. ClickStack and HyperDX Observability
+## 11. ClickStack, HyperDX, and Langfuse Observability
 
 ClickStack is a separate observability stack from the application ClickHouse instance. It runs in the `clickhouse/clickstack-local` container and includes HyperDX, an OpenTelemetry collector, ClickHouse storage for observability data, and its supporting services.
 
@@ -485,6 +487,16 @@ The application dashboard and HyperDX are complementary:
 Dashboard -> business KPIs, anomaly detection, charts, and transaction drill-down
 HyperDX   -> producer telemetry, searchable logs, and observability investigation
 ```
+
+Langfuse is an optional application-level observability component. When
+`LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are configured, the backend
+creates spans for historical anomaly detection and interactive slice
+investigation, while `ml_anomaly.py` creates a span for each model-training
+run. These traces contain selected dimensions, aggregate result counts, and
+model validation metrics only; raw transaction rows and customer identifiers
+are not exported. This provides the trace foundation for the future **Ask the
+Bank Analyst** workflow described in the demo brief, without requiring an LLM
+to be deployed yet.
 
 ## 12. Startup
 

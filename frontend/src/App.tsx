@@ -10,6 +10,7 @@ import { ResponseCodesChart } from './components/charts/ResponseCodesChart';
 import { DrillDownExplorer } from './components/DrillDownExplorer';
 import { LiveTransactionsTable } from './components/LiveTransactionsTable';
 import { ErrorNotice } from './components/ErrorNotice';
+import { AIAnalystButton } from './components/AIAnalystPanel';
 import {
   KpiData,
   TimeseriesPoint,
@@ -20,9 +21,7 @@ import {
   TransactionItem,
   IncidentStatus,
 } from './types';
-
-const API_BASE = 'http://127.0.0.1:8000';
-const WS_URL = 'ws://127.0.0.1:8000/ws/live';
+import { API_BASE, WS_URL } from './api';
 
 export const App: React.FC = () => {
   const [chConnected, setChConnected] = useState<boolean>(false);
@@ -300,6 +299,9 @@ export const App: React.FC = () => {
           <span>Engine: <strong className="text-purple-600">AggregatingMergeTree (1m)</strong></span>
         </div>
       </footer>
+
+      {/* AI Analyst Floating Button */}
+      <AIAnalystButton />
     </div>
   );
 };

@@ -31,6 +31,8 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
+from backend.langfuse_observability import langfuse_observer
+
 TARGET = "label"
 
 CATEGORICAL_FEATURES = [
@@ -74,18 +76,19 @@ def load_training_data(args):
     if args.hours_back:
         where.append("event_time >= now() - INTERVAL %(hours)s HOUR")
         params["hours"] = args.hours_back
-    where_sql = (" WHERE " + " AND ".join(where)) if where else ""
 
     client = _connect(args)
     sql = SELECT_SQL.format(schema=args.database)
 
     print(f"Loading up to {args.max_negatives:,} labeled negatives...")
-    neg_sql = sql + where_sql + " AND is_synthetic_incident = 0 ORDER BY rand() LIMIT %(limit)s"
+    neg_sql = sql + " WHERE " + " AND ".join([*where, "is_synthetic_incident = 0"])
+    neg_sql += " ORDER BY rand() LIMIT %(limit)s"
     params_neg = {**params, "limit": args.max_negatives}
     neg_rows = client.query(neg_sql, parameters=params_neg).result_rows
 
     print("Loading all labeled positives (incident rows)...")
-    pos_rows = client.query(sql + where_sql + " AND is_synthetic_incident = 1").result_rows
+    pos_sql = sql + " WHERE " + " AND ".join([*where, "is_synthetic_incident = 1"])
+    pos_rows = client.query(pos_sql, parameters=params).result_rows
 
     if len(pos_rows) == 0:
         raise SystemExit(
@@ -176,22 +179,26 @@ def roc_auc(y_true, y_pred):
 
 
 def train(args):
-    df = load_training_data(args)
-    encoders = build_encoders(df)
-    X = encode_features(df, encoders)
-    y = df[TARGET].to_numpy()
+    with langfuse_observer.span(
+        "train-incident-anomaly-model",
+        {"model_type": "lightgbm", "hours_back": args.hours_back, "max_negatives": args.max_negatives},
+    ) as record_output:
+        df = load_training_data(args)
+        encoders = build_encoders(df)
+        X = encode_features(df, encoders)
+        y = df[TARGET].to_numpy()
 
-    train_df, val_df = stratified_split(df, seed=args.seed)
-    X_train = X.loc[train_df.index]
-    y_train = train_df[TARGET].to_numpy()
-    X_val = X.loc[val_df.index]
-    y_val = val_df[TARGET].to_numpy()
+        train_df, val_df = stratified_split(df, seed=args.seed)
+        X_train = X.loc[train_df.index]
+        y_train = train_df[TARGET].to_numpy()
+        X_val = X.loc[val_df.index]
+        y_val = val_df[TARGET].to_numpy()
 
-    n_pos = int(y_train.sum())
-    n_neg = len(y_train) - n_pos
-    scale_pos_weight = min(max(1, n_neg / max(1, n_pos)), 60.0)
+        n_pos = int(y_train.sum())
+        n_neg = len(y_train) - n_pos
+        scale_pos_weight = min(max(1, n_neg / max(1, n_pos)), 60.0)
 
-    params = {
+        params = {
         "objective": "binary",
         "metric": "auc",
         "boosting_type": "gbdt",
@@ -205,41 +212,41 @@ def train(args):
         "scale_pos_weight": scale_pos_weight,
         "seed": args.seed,
         "verbosity": -1,
-    }
+        }
 
-    lgb_train = lgb.Dataset(X_train, label=y_train,
-                            categorical_feature=CATEGORICAL_FEATURES)
-    lgb_val = lgb.Dataset(X_val, label=y_val, reference=lgb_train)
+        lgb_train = lgb.Dataset(X_train, label=y_train,
+                                categorical_feature=CATEGORICAL_FEATURES)
+        lgb_val = lgb.Dataset(X_val, label=y_val, reference=lgb_train)
 
-    print("Training LightGBM (up to 800 rounds, early stopping)...")
-    booster = lgb.train(
+        print("Training LightGBM (up to 800 rounds, early stopping)...")
+        booster = lgb.train(
         params, lgb_train, num_boost_round=800,
         valid_sets=[lgb_val],
         callbacks=[lgb.early_stopping(100), lgb.log_evaluation(100)],
-    )
+        )
 
-    y_pred_val = booster.predict(X_val, num_iteration=booster.best_iteration)
-    auc = roc_auc(y_val, y_pred_val)
-    thr, f1, precision = best_threshold(y_val, y_pred_val)
-    recall = float((y_pred_val >= thr) & (y_val == 1)).sum() / max(1, int(y_val.sum()))
-    print(f"\nValidation AUC: {auc:.4f}")
-    print(f"Detection threshold (precision>=0.80): {thr:.4f} | F1 {f1:.4f} | "
-          f"precision {precision:.4f} | recall {recall:.4f}")
+        y_pred_val = booster.predict(X_val, num_iteration=booster.best_iteration)
+        auc = roc_auc(y_val, y_pred_val)
+        thr, f1, precision = best_threshold(y_val, y_pred_val)
+        recall = float(((y_pred_val >= thr) & (y_val == 1)).sum()) / max(1, int(y_val.sum()))
+        print(f"\nValidation AUC: {auc:.4f}")
+        print(f"Detection threshold (precision>=0.80): {thr:.4f} | F1 {f1:.4f} | "
+              f"precision {precision:.4f} | recall {recall:.4f}")
 
-    importances = sorted(
+        importances = sorted(
         zip(FEATURES, booster.feature_importance("gain")),
         key=lambda t: -t[1],
-    )
-    print("\nFeature importance (gain):")
-    for name, gain in importances:
-        print(f"  {name:<18} {gain:,.0f}")
+        )
+        print("\nFeature importance (gain):")
+        for name, gain in importances:
+            print(f"  {name:<18} {gain:,.0f}")
 
-    os.makedirs(args.model_dir, exist_ok=True)
-    booster_path = os.path.join(args.model_dir, "anomaly_lgbm.txt")
-    meta_path = os.path.join(args.model_dir, "anomaly_meta.json")
-    booster.save_model(booster_path, num_iteration=booster.best_iteration)
+        os.makedirs(args.model_dir, exist_ok=True)
+        booster_path = os.path.join(args.model_dir, "anomaly_lgbm.txt")
+        meta_path = os.path.join(args.model_dir, "anomaly_meta.json")
+        booster.save_model(booster_path, num_iteration=booster.best_iteration)
 
-    meta = {
+        meta = {
         "trainer": "ml_anomaly.py",
         "trained_at": datetime.utcnow().isoformat(),
         "source": "clickhouse",
@@ -262,12 +269,13 @@ def train(args):
         "feature_importance_gain": {
             name: round(float(gain), 2) for name, gain in importances
         },
-    }
-    with open(meta_path, "w") as fh:
-        json.dump(meta, fh, indent=2)
+        }
+        with open(meta_path, "w") as fh:
+            json.dump(meta, fh, indent=2)
 
-    print(f"\nSaved model -> {booster_path}")
-    print(f"Saved meta  -> {meta_path}")
+        record_output({"auc": round(auc, 4), "f1": round(f1, 4), "precision": round(precision, 4), "recall": round(recall, 4), "training_rows": len(df)})
+        print(f"\nSaved model -> {booster_path}")
+        print(f"Saved meta  -> {meta_path}")
 
 
 def predict(args):
