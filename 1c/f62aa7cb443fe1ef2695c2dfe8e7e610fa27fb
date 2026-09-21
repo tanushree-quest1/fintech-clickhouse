@@ -1,0 +1,57 @@
+backend/langfuse_observability.py
+  s_5f4a03c800d540::t_e618c34a3a8233 53-59,61-65,67-70
+  s_5f4a03c800d540::t_211b8306960577 1-52,60,66,71-74
+ml_anomaly.py
+  s_5f4a03c800d540::t_211b8306960577 34-35,182-201,215,217-219,221-222,226,228-234,236,239-242,244-247,249,272-274,276-278,341
+  s_5f4a03c800d540::t_e618c34a3a8233 84-85,90-91
+backend/main.py
+  s_5f4a03c800d540::t_211b8306960577 15-16,323-328,365,367-369,401-409,418-422,424,447-458
+ARCHITECTURE_AND_DASHBOARD_GUIDE.md
+  s_5f4a03c800d540::t_de915fbd5011a2 62,112-113,458,491-500
+frontend/src/components/DrillDownExplorer.tsx
+  s_5f4a03c800d540::t_4e2b2b7ee098a3 3
+backend/requirements.txt
+  s_5f4a03c800d540::t_e618c34a3a8233 8-9
+  s_5f4a03c800d540::t_4e2b2b7ee098a3 6
+  s_5f4a03c800d540::t_211b8306960577 7
+frontend/src/api.ts
+  s_5f4a03c800d540::t_4e2b2b7ee098a3 1-7
+populate_dimensions.py
+  s_5f4a03c800d540::t_4e2b2b7ee098a3 1-100
+README_DASHBOARD.md
+  s_5f4a03c800d540::t_211b8306960577 123-131
+  s_5f4a03c800d540::t_4e2b2b7ee098a3 88,93-102,118-121
+  s_5f4a03c800d540::t_6be8a9dad2f116 73-78,103,110
+  s_4851a3642c138a::t_e39518f146aec2 122
+frontend/src/App.tsx
+  s_5f4a03c800d540::t_4e2b2b7ee098a3 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1cf62aa7cb443fe1ef2695c2dfe8e7e610fa27fb",
+  "prompts": {},
+  "humans": {
+    "h_ac42636a4acad2": {
+      "author": "tanushreevijayasanan <tanushree@quest1.io>"
+    }
+  },
+  "sessions": {
+    "s_4851a3642c138a": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0507b951-ed4b-4847-81b9-4cd348702267",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "tanushreevijayasanan <tanushree@quest1.io>"
+    },
+    "s_5f4a03c800d540": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b9be-dbc2-79e1-b25f-ecbe90e95c60",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "tanushreevijayasanan <tanushree@quest1.io>"
+    }
+  }
+}
