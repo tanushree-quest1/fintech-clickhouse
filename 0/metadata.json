@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M33G5HE81T1YJGZXMX2SB3VF",
+  "session_id": "ses_f3d913acfffe6jzD5AAiIW3mJf",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-22T02:47:44.8580267Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AI_ANALYST_SETUP.md",
+    "clickhouse-data/status",
+    "docker-compose.override.yml",
+    "frontend/src/components/AIAnalystPanel.tsx"
+  ],
+  "agent": "OpenCode",
+  "model": "",
+  "turn_id": "f84035dde9ab",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-22T02:47:44.7500491Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 31,
+    "human_removed": 94,
+    "total_committed": 0,
+    "total_lines_changed": 125,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 202,
+      "user_lines_removed": 2,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".gemini/settings.json": 141,
+        ".github/hooks/entire.json": 61
+      },
+      "user_removed_per_file": {
+        "clickhouse-data/metadata/bank_demo": 1,
+        "clickhouse-data/metadata/system": 1
+      }
+    }
+  ]
+}

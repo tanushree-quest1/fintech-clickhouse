@@ -1,0 +1,95 @@
+{
+  "info": {
+    "id": "ses_f3d913acfffe6jzD5AAiIW3mJf",
+    "slug": "mighty-falcon",
+    "projectID": "6da805a55d90c22333122f139c3716ccf4f100b6",
+    "directory": "C:\\Users\\Tanushree\\fintech-clickhouse",
+    "path": "",
+    "title": "New session - 2026-09-21T05:27:14.480Z",
+    "agent": "build",
+    "model": {
+      "id": "mimo-v2.5-free",
+      "providerID": "opencode"
+    },
+    "version": "1.18.31",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "cache": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    "time": {
+      "created": 1789968434480,
+      "updated": 1789968446873
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1789968434551
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "opencode",
+          "modelID": "mimo-v2.5-free"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_0c26ec577001x2vArugdBqOSkG",
+        "sessionID": "ses_f3d913acfffe6jzD5AAiIW3mJf"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "make the ai analyst icon black",
+          "id": "prt_0c26ec57c001Yw2qlbLfHbNnGI",
+          "sessionID": "ses_f3d913acfffe6jzD5AAiIW3mJf",
+          "messageID": "msg_0c26ec577001x2vArugdBqOSkG"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0c26ec577001x2vArugdBqOSkG",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "C:\\Users\\Tanushree\\fintech-clickhouse",
+          "root": "C:\\Users\\Tanushree\\fintech-clickhouse"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "modelID": "mimo-v2.5-free",
+        "providerID": "opencode",
+        "time": {
+          "created": 1789968445643,
+          "completed": 1789968457930
+        },
+        "id": "msg_0c26ef0cb001y7h7s2hemNDSPl",
+        "sessionID": "ses_f3d913acfffe6jzD5AAiIW3mJf"
+      },
+      "parts": []
+    }
+  ]
+}
