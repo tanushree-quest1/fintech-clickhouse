@@ -69,12 +69,19 @@ npm run dev
 ```
 
 ### 6. Use the AI Analyst
-1. Open your banking dashboard at http://localhost:5173
+1. Open your banking dashboard at http://localhost:5174
 2. Click the blue floating button in the bottom-right corner
-3. A chat panel will open with LibreChat embedded
-4. Set your Groq API key in LibreChat if prompted
-5. Enable the ClickHouse MCP server in the MCP settings
-6. Ask banking questions like:
+3. LibreChat will open in a new browser tab
+4. Create an account or sign in to LibreChat
+5. Set your Groq API key in LibreChat settings
+6. Configure the ClickHouse MCP server:
+   - Go to MCP settings in LibreChat (sidebar or settings menu)
+   - Add new server with these details:
+     - **Name**: ClickHouse Local
+     - **Type**: SSE
+     - **URL**: `http://localhost:8001/sse`
+   - Enable the MCP server for your conversations
+7. Ask banking questions like:
    - "Why did transaction failures increase?"
    - "Which merchants are most affected by the current issue?"
    - "Show me the gateway health status"
@@ -144,7 +151,7 @@ mcpServers:
 Enabled Groq endpoint and configured for user-provided API key.
 
 ### Frontend Integration
-- `AIAnalystPanel.tsx`: Chat panel component with LibreChat iframe
+- `AIAnalystPanel.tsx`: Simple button that opens LibreChat in new tab
 - `App.tsx`: Added AIAnalystButton component
 
 ## Next Steps

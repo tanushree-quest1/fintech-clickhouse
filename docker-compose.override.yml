@@ -11,8 +11,8 @@ services:
     environment:
       - MONGO_URI=mongodb://librechat-mongo:27017/LibreChat
       - CONFIG_BYPASS_VALIDATION=true
-      - JWT_SECRET=banking-demo-jwt-secret-change-in-production-2024
-      - ALLOWED_DOMAINS=host.docker.internal,localhost,mcp-clickhouse
+      - JWT_SECRET=demo-jwt-secret-very-long-random-string-for-production-use-please-change-in-production-environment-2024
+      - REFRESH_TOKEN_SECRET=demo-refresh-token-secret-very-long-random-string-for-production-use-please-change-in-production-environment-2024
     depends_on:
       - librechat-mongo
       - mcp-clickhouse
